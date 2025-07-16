@@ -1,6 +1,10 @@
 use dioxus::prelude::*;
 use wasm_bindgen::prelude::*;
-use web_sys::{FileSystemDirectoryHandle, FileSystemHandle, FileSystemHandleKind};
+use wasm_bindgen_futures::JsFuture;
+use web_sys::{
+    FileSystemDirectoryHandle, FileSystemFileHandle, FileSystemHandle, FileSystemHandleKind,
+    FileSystemWritableFileStream,
+};
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
@@ -17,34 +21,6 @@ fn App() -> Element {
         FileSystemBrowser {}
 
     }
-}
-
-// #[wasm_bindgen]
-// extern "C" {
-//     #[wasm_bindgen(js_namespace = window)]
-//     async fn showDirectoryPicker() -> JsValue;
-// }
-
-#[wasm_bindgen]
-extern "C" {
-    pub type FileSystemFileHandle;
-
-    #[wasm_bindgen(catch, method, js_name = getFile)]
-    async fn get_file(this: &FileSystemFileHandle) -> Result<JsValue, JsValue>;
-
-    #[wasm_bindgen(catch, method, js_name = createWritable)]
-    async fn create_writable(this: &FileSystemFileHandle) -> Result<JsValue, JsValue>;
-}
-
-#[wasm_bindgen]
-extern "C" {
-    pub type FileSystemWritableFileStream;
-
-    #[wasm_bindgen(catch, method)]
-    async fn write(this: &FileSystemWritableFileStream, data: &str) -> Result<JsValue, JsValue>;
-
-    #[wasm_bindgen(catch, method)]
-    async fn close(this: &FileSystemWritableFileStream) -> Result<JsValue, JsValue>;
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -222,14 +198,14 @@ fn render_file_tree(
 }
 
 async fn show_directory_picker() -> Result<FileSystemDirectoryHandle, JsValue> {
-    use wasm_bindgen_futures::JsFuture;
     let js_value = JsFuture::from(web_sys::window().unwrap().show_directory_picker()?).await?;
 
     js_value.dyn_into::<FileSystemDirectoryHandle>()
 }
 
 async fn read_file_content(handle: &FileSystemFileHandle) -> Result<String, JsValue> {
-    let file = handle.get_file().await?;
+    // let file = handle.get_file().await?;
+    let file = JsFuture::from(handle.get_file()).await?;
     let file: web_sys::File = file.dyn_into()?;
     let text_promise = file.text();
     let text = wasm_bindgen_futures::JsFuture::from(text_promise).await?;
@@ -237,10 +213,10 @@ async fn read_file_content(handle: &FileSystemFileHandle) -> Result<String, JsVa
 }
 
 async fn write_file_content(handle: &FileSystemFileHandle, content: &str) -> Result<(), JsValue> {
-    let writable = handle.create_writable().await?;
+    let writable = JsFuture::from(handle.create_writable()).await?;
     let stream: FileSystemWritableFileStream = writable.dyn_into()?;
-    stream.write(content).await?;
-    stream.close().await?;
+    JsFuture::from(stream.write_with_str(content)?).await?;
+    JsFuture::from(stream.close()).await?;
     Ok(())
 }
 

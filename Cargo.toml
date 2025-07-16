@@ -2,7 +2,7 @@
 name = "fs"
 version = "0.1.0"
 authors = ["jojongguk <jojongguk@polestargames.com>"]
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -19,6 +19,7 @@ web-sys = { version = "0.3", features = [
   "FileSystemHandleKind",
   "FileSystemPermissionDescriptor",
   "FileSystemPermissionMode",
+  "FileSystemWritableFileStream",
 ] }
 serde = { version = "1.0", features = ["derive"] }
 serde-wasm-bindgen = "0.6"
