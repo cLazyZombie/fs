@@ -31,6 +31,17 @@ struct FileSystemEntry {
     handle: Option<FileSystemHandle>,
 }
 
+// // 기록용. 이런식으로 부르면 동작함.
+// extern "C" {
+//     pub type FileSystemWritableFileStream;
+//
+//     #[wasm_bindgen(catch, method)]
+//     async fn write(this: &FileSystemWritableFileStream, data: &str) -> Result<JsValue, JsValue>;
+//
+//     #[wasm_bindgen(catch, method)]
+//     async fn close(this: &FileSystemWritableFileStream) -> Result<JsValue, JsValue>;
+// }
+
 #[component]
 pub fn FileSystemBrowser() -> Element {
     let mut selected_folder = use_signal(|| None::<String>);
