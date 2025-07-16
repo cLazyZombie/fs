@@ -4,7 +4,6 @@ use web_sys::{FileSystemDirectoryHandle, FileSystemHandle, FileSystemHandleKind}
 
 const FAVICON: Asset = asset!("/assets/favicon.ico");
 const MAIN_CSS: Asset = asset!("/assets/main.css");
-const HEADER_SVG: Asset = asset!("/assets/header.svg");
 
 fn main() {
     dioxus::launch(App);
@@ -20,19 +19,19 @@ fn App() -> Element {
     }
 }
 
-#[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = window)]
-    async fn showDirectoryPicker() -> JsValue;
-}
+// #[wasm_bindgen]
+// extern "C" {
+//     #[wasm_bindgen(js_namespace = window)]
+//     async fn showDirectoryPicker() -> JsValue;
+// }
 
 #[wasm_bindgen]
 extern "C" {
     pub type FileSystemFileHandle;
-    
+
     #[wasm_bindgen(catch, method, js_name = getFile)]
     async fn get_file(this: &FileSystemFileHandle) -> Result<JsValue, JsValue>;
-    
+
     #[wasm_bindgen(catch, method, js_name = createWritable)]
     async fn create_writable(this: &FileSystemFileHandle) -> Result<JsValue, JsValue>;
 }
@@ -40,10 +39,10 @@ extern "C" {
 #[wasm_bindgen]
 extern "C" {
     pub type FileSystemWritableFileStream;
-    
+
     #[wasm_bindgen(catch, method)]
     async fn write(this: &FileSystemWritableFileStream, data: &str) -> Result<JsValue, JsValue>;
-    
+
     #[wasm_bindgen(catch, method)]
     async fn close(this: &FileSystemWritableFileStream) -> Result<JsValue, JsValue>;
 }
@@ -59,10 +58,10 @@ struct FileSystemEntry {
 #[component]
 pub fn FileSystemBrowser() -> Element {
     let mut selected_folder = use_signal(|| None::<String>);
-    let mut file_structure = use_signal(|| Vec::<FileSystemEntry>::new());
-    let mut last_update = use_signal(|| String::new());
+    let mut file_structure = use_signal(Vec::<FileSystemEntry>::new);
+    let mut last_update = use_signal(String::new);
     let selected_file = use_signal(|| None::<FileSystemHandle>);
-    let mut file_content = use_signal(|| String::new());
+    let mut file_content = use_signal(String::new);
     let mut is_content_modified = use_signal(|| false);
 
     let refresh_structure = move |handle: FileSystemDirectoryHandle| {
@@ -74,7 +73,7 @@ pub fn FileSystemBrowser() -> Element {
                     last_update.set(format!("Last updated: {}", now.to_string()));
                 }
                 Err(e) => {
-                    web_sys::console::log_1(&format!("Error reading directory: {:?}", e).into());
+                    web_sys::console::log_1(&format!("Error reading directory: {e:?}").into());
                 }
             }
         });
@@ -89,7 +88,7 @@ pub fn FileSystemBrowser() -> Element {
                     refresh_structure(handle);
                 }
                 Err(e) => {
-                    web_sys::console::log_1(&format!("Error selecting folder: {:?}", e).into());
+                    web_sys::console::log_1(&format!("Error selecting folder: {e:?}").into());
                 }
             }
         });
@@ -99,7 +98,7 @@ pub fn FileSystemBrowser() -> Element {
         div {
             style: "padding: 20px; font-family: monospace; color: #ffffff; height: 100vh; display: flex; flex-direction: column;",
             h1 { style: "color: #ffffff; margin: 0 0 20px 0;", "File System Browser" }
-            
+
             button {
                 onclick: select_folder,
                 style: "padding: 10px 20px; margin-bottom: 20px; font-size: 16px; background-color: #2a2a2a; color: #ffffff; border: 1px solid #444; border-radius: 5px; cursor: pointer;",
@@ -116,7 +115,7 @@ pub fn FileSystemBrowser() -> Element {
 
             div {
                 style: "display: flex; flex: 1; gap: 20px; overflow: hidden;",
-                
+
                 // File tree panel
                 div {
                     style: "flex: 0 0 40%; background: #1a1a1a; padding: 15px; border-radius: 5px; overflow-y: auto; white-space: pre; color: #ffffff; border: 1px solid #333; font-size: 14px; line-height: 1.6;",
@@ -124,12 +123,12 @@ pub fn FileSystemBrowser() -> Element {
                         {render_file_tree(&entry, 0, selected_file, file_content, is_content_modified)}
                     }
                 }
-                
+
                 // Editor panel
                 if selected_file().is_some() {
                     div {
                         style: "flex: 1; display: flex; flex-direction: column; gap: 10px;",
-                        
+
                         textarea {
                             style: "flex: 1; background: #1a1a1a; color: #ffffff; border: 1px solid #333; border-radius: 5px; padding: 15px; font-family: monospace; font-size: 14px; resize: none;",
                             value: "{file_content()}",
@@ -138,7 +137,7 @@ pub fn FileSystemBrowser() -> Element {
                                 is_content_modified.set(true);
                             }
                         }
-                        
+
                         button {
                             style: "padding: 10px 20px; font-size: 16px; background-color: #2a7f2a; color: #ffffff; border: none; border-radius: 5px; cursor: pointer; align-self: flex-start;",
                             disabled: !is_content_modified(),
@@ -153,7 +152,7 @@ pub fn FileSystemBrowser() -> Element {
                                                 web_sys::console::log_1(&"File saved successfully!".into());
                                             }
                                             Err(e) => {
-                                                web_sys::console::log_1(&format!("Error writing file: {:?}", e).into());
+                                                web_sys::console::log_1(&format!("Error writing file: {e:?}").into());
                                             }
                                         }
                                     });
@@ -169,7 +168,7 @@ pub fn FileSystemBrowser() -> Element {
 }
 
 fn render_file_tree(
-    entry: &FileSystemEntry, 
+    entry: &FileSystemEntry,
     depth: usize,
     mut selected_file: Signal<Option<FileSystemHandle>>,
     mut file_content: Signal<String>,
@@ -177,23 +176,23 @@ fn render_file_tree(
 ) -> Element {
     let indent = "  ".repeat(depth);
     let prefix = if entry.is_directory { "📁" } else { "📄" };
-    
+
     // Check if this is a supported file type
     let is_supported_file = !entry.is_directory && {
         let name_lower = entry.name.to_lowercase();
-        name_lower.ends_with(".json") || 
-        name_lower.ends_with(".md") || 
-        name_lower.ends_with(".rs") || 
-        name_lower.ends_with(".js")
+        name_lower.ends_with(".json")
+            || name_lower.ends_with(".md")
+            || name_lower.ends_with(".rs")
+            || name_lower.ends_with(".js")
     };
-    
+
     let handle_clone = entry.handle.clone();
     let onclick = move |_| {
         if is_supported_file {
             if let Some(handle) = handle_clone.clone() {
                 selected_file.set(Some(handle.clone()));
                 is_content_modified.set(false);
-                
+
                 spawn(async move {
                     // Cast JsValue to our FileSystemFileHandle type
                     let file_handle: FileSystemFileHandle = handle.unchecked_into();
@@ -202,14 +201,14 @@ fn render_file_tree(
                             file_content.set(content);
                         }
                         Err(e) => {
-                            web_sys::console::log_1(&format!("Error reading file: {:?}", e).into());
+                            web_sys::console::log_1(&format!("Error reading file: {e:?}").into());
                         }
                     }
                 });
             }
         }
     };
-    
+
     rsx! {
         div {
             style: if is_supported_file { "cursor: pointer;" } else { "" },
@@ -223,7 +222,9 @@ fn render_file_tree(
 }
 
 async fn show_directory_picker() -> Result<FileSystemDirectoryHandle, JsValue> {
-    let js_value = showDirectoryPicker().await;
+    use wasm_bindgen_futures::JsFuture;
+    let js_value = JsFuture::from(web_sys::window().unwrap().show_directory_picker()?).await?;
+
     js_value.dyn_into::<FileSystemDirectoryHandle>()
 }
 
@@ -243,73 +244,80 @@ async fn write_file_content(handle: &FileSystemFileHandle, content: &str) -> Res
     Ok(())
 }
 
-fn read_directory_recursive(handle: FileSystemDirectoryHandle) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FileSystemEntry>, JsValue>>>> {
+fn read_directory_recursive(
+    handle: FileSystemDirectoryHandle,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<Vec<FileSystemEntry>, JsValue>>>> {
     Box::pin(async move {
-    let mut entries = Vec::new();
-    
-    // Use JavaScript interop for async iterator
-    let values_method = js_sys::Reflect::get(&handle, &"values".into())
-        .map_err(|_| JsValue::from_str("Failed to get values method"))?
-        .dyn_into::<js_sys::Function>()
-        .map_err(|_| JsValue::from_str("values is not a function"))?;
-    
-    let async_iterator = values_method.call0(&handle)
-        .map_err(|_| JsValue::from_str("Failed to call values"))?;
-    
-    loop {
-        let next_promise = js_sys::Reflect::get(&async_iterator, &"next".into())?
+        let mut entries = Vec::new();
+
+        // Use JavaScript interop for async iterator
+        let values_method = js_sys::Reflect::get(&handle, &"values".into())
+            .map_err(|_| JsValue::from_str("Failed to get values method"))?
             .dyn_into::<js_sys::Function>()
-            .map_err(|_| JsValue::from_str("Failed to get next function"))?
-            .call0(&async_iterator)?;
-        
-        let result = wasm_bindgen_futures::JsFuture::from(
-            next_promise.dyn_into::<js_sys::Promise>()
-                .map_err(|_| JsValue::from_str("Failed to convert to promise"))?
-        ).await?;
-        
-        let done = js_sys::Reflect::get(&result, &"done".into())
-            .map_err(|_| JsValue::from_str("Failed to get done"))?
-            .as_bool().unwrap_or(true);
-        
-        if done {
-            break;
-        }
-        
-        let value = js_sys::Reflect::get(&result, &"value".into())
-            .map_err(|_| JsValue::from_str("Failed to get value"))?;
-        
-        let entry_handle = value
-            .dyn_into::<FileSystemHandle>()
-            .map_err(|_| JsValue::from_str("Failed to convert value to FileSystemHandle"))?;
-        
-        let name = entry_handle.name();
-        let kind = entry_handle.kind();
-        
-        let is_directory = kind == FileSystemHandleKind::Directory;
-        let mut children = Vec::new();
-        
-        if is_directory {
-            if let Ok(dir_handle) = entry_handle.clone().dyn_into::<FileSystemDirectoryHandle>() {
-                children = read_directory_recursive(dir_handle).await.unwrap_or_default();
+            .map_err(|_| JsValue::from_str("values is not a function"))?;
+
+        let async_iterator = values_method
+            .call0(&handle)
+            .map_err(|_| JsValue::from_str("Failed to call values"))?;
+
+        loop {
+            let next_promise = js_sys::Reflect::get(&async_iterator, &"next".into())?
+                .dyn_into::<js_sys::Function>()
+                .map_err(|_| JsValue::from_str("Failed to get next function"))?
+                .call0(&async_iterator)?;
+
+            let result = wasm_bindgen_futures::JsFuture::from(
+                next_promise
+                    .dyn_into::<js_sys::Promise>()
+                    .map_err(|_| JsValue::from_str("Failed to convert to promise"))?,
+            )
+            .await?;
+
+            let done = js_sys::Reflect::get(&result, &"done".into())
+                .map_err(|_| JsValue::from_str("Failed to get done"))?
+                .as_bool()
+                .unwrap_or(true);
+
+            if done {
+                break;
             }
+
+            let value = js_sys::Reflect::get(&result, &"value".into())
+                .map_err(|_| JsValue::from_str("Failed to get value"))?;
+
+            let entry_handle = value
+                .dyn_into::<FileSystemHandle>()
+                .map_err(|_| JsValue::from_str("Failed to convert value to FileSystemHandle"))?;
+
+            let name = entry_handle.name();
+            let kind = entry_handle.kind();
+
+            let is_directory = kind == FileSystemHandleKind::Directory;
+            let mut children = Vec::new();
+
+            if is_directory {
+                if let Ok(dir_handle) = entry_handle.clone().dyn_into::<FileSystemDirectoryHandle>()
+                {
+                    children = read_directory_recursive(dir_handle)
+                        .await
+                        .unwrap_or_default();
+                }
+            }
+
+            entries.push(FileSystemEntry {
+                name,
+                is_directory,
+                children,
+                handle: Some(entry_handle),
+            });
         }
-        
-        entries.push(FileSystemEntry {
-            name,
-            is_directory,
-            children,
-            handle: Some(entry_handle),
-        });
-    }
-    
-    entries.sort_by(|a, b| {
-        match (a.is_directory, b.is_directory) {
+
+        entries.sort_by(|a, b| match (a.is_directory, b.is_directory) {
             (true, false) => std::cmp::Ordering::Less,
             (false, true) => std::cmp::Ordering::Greater,
             _ => a.name.cmp(&b.name),
-        }
-    });
-    
-    Ok(entries)
+        });
+
+        Ok(entries)
     })
 }
